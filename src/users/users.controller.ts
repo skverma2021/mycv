@@ -1,24 +1,58 @@
-import { Controller, Body, Post, Get, Patch, Param, Query, Delete, NotFoundException, UseInterceptors, ClassSerializerInterceptor } from '@nestjs/common';
+import { Controller, Body, Post, Get, Patch, Param, Query, Delete, NotFoundException, Session, UseGuards } from '@nestjs/common';
+import {CurrentUser} from '../users/decorators/current-users-decorator';
 import { CreateUserDto } from './dtos/create-users.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { UsersService } from './users.service';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
 import { UserDto } from './dtos/user.dto';
 import { AuthService } from './auth.service';
+import { User } from './user.entity';
+import { AuthGuard } from 'src/guards/auth.guard';
 
 @Controller('auth')
 @Serialize(UserDto)
 export class UsersController {
     constructor(private usersService: UsersService, private authService: AuthService){}
 
+    // @Get('/whoAmI')
+    // whoAmI(@Session() session: any){
+    //     return this.usersService.findOne(session.userId);
+    // }
+    @Get('/whoAmI')
+    @UseGuards(AuthGuard)
+    whoAmI(@CurrentUser() user: User){
+        return user;
+    }
+
+    @Post('/signOut')
+    signOut(@Session() session: any){
+        session.userId = null
+    }
+
+    
+    
+    @Get('colors/:color')
+    setColor(@Param('color') color: string, @Session() session: any){
+        session.color = color;
+    }
+
+    @Get('colors')
+    getColor(@Session() session: any){
+        return session.color;
+    }
+
     @Post('/signUp')
-    createUser(@Body() body: CreateUserDto){
-        return this.authService.signUp(body.email, body.password)
+    async createUser(@Body() body: CreateUserDto, @Session() session: any){
+        const user = await this.authService.signUp(body.email, body.password)
+        session.userId = user.id
+        return user
     }
 
     @Post('/signIn')
-    signInUser(@Body() body:CreateUserDto){
-        return this.authService.signIn(body.email, body.password)
+    async signInUser(@Body() body:CreateUserDto, @Session() session: any){
+        const user = await this.authService.signIn(body.email, body.password)
+        session.userId = user.id
+        return user
     }
 
 
